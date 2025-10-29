@@ -345,55 +345,9 @@ const Sidebar = () => {
             </Link>
           )}
 
-          {/* Employee Attendance & Salary System */}
-          {(department === "Admin" ||
-            department === "HR" ||
-            permissions?.accessSettings) && (
-            <Link
-              to="/employee-attendance"
-              className={`group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
-                isActive("/employee-attendance")
-                  ? "bg-gradient-to-r from-indigo-600/20 to-blue-600/20 text-white border border-indigo-500/30 shadow-lg shadow-indigo-500/20"
-                  : "text-slate-300 hover:text-white hover:bg-slate-800/60 border border-transparent"
-              }`}
-            >
-              <UsersIcon
-                className={`w-5 h-5 mr-3 transition-colors ${
-                  isActive("/employee-attendance")
-                    ? "text-indigo-400"
-                    : "text-slate-400 group-hover:text-indigo-400"
-                }`}
-              />
-              <span>Employee Attendance</span>
-              {isActive("/employee-attendance") && (
-                <div className="ml-auto w-2 h-2 bg-indigo-400 rounded-full animate-pulse" />
-              )}
-            </Link>
-          )}
-
-          {/* Transfer Supply */}
-          {permissions?.accessTransferStocks && (
-            <Link
-              to="/Transfer"
-              className={`group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
-                isActive("/Transfer")
-                  ? "bg-gradient-to-r from-orange-600/20 to-red-600/20 text-white border border-orange-500/30 shadow-lg shadow-orange-500/20"
-                  : "text-slate-300 hover:text-white hover:bg-slate-800/60 border border-transparent"
-              }`}
-            >
-              <ArrowsRightLeftIcon
-                className={`w-5 h-5 mr-3 transition-colors ${
-                  isActive("/Transfer")
-                    ? "text-orange-400"
-                    : "text-slate-400 group-hover:text-orange-400"
-                }`}
-              />
-              <span>Transfer Supply</span>
-            </Link>
-          )}
 
           {/* Pending Supply Request */}
-          {(department === "CSR" || department === "Admin") && (
+          {/* {(department === "CSR" || department === "Admin") && (
             <Link
               to="ViewRequest"
               className={`group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
@@ -411,10 +365,10 @@ const Sidebar = () => {
               />
               <span>Pending Supply Requests</span>
             </Link>
-          )}
+          )} */}
 
           {/* Employee Attendance & Salary System */}
-          {/* {(department === "Admin" || department === "HR" || permissions?.accessSettings) && (
+           {(department === "Admin" || department === "HR" || permissions?.accessSettings) && (
             <Link
               to="/employee-attendance"
               className={`group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
@@ -435,7 +389,7 @@ const Sidebar = () => {
                 <div className="ml-auto w-2 h-2 bg-indigo-400 rounded-full animate-pulse" />
               )}
             </Link>
-          )} */}
+          )} 
 
           {permissions?.accessLaboratory && (
             <div className="space-y-1">
