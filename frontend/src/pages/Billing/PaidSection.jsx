@@ -1,12 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { database } from '../../firebase/firebase';
-import { ref, query, orderByChild, equalTo, onValue } from "firebase/database";
+import { ref, query, orderByChild, equalTo, onValue, get } from "firebase/database";
 import { ChevronLeft, ChevronRight, Download, Search, TrendingUp, DollarSign, FileText, Users, Eye, Smartphone, CreditCard, Info } from 'lucide-react';
 import DateRangePicker from '../../components/DateRangePicker/DateRangePicker';
 import PaidBillingModal from './PaidBillingModal';
 import GcashTransactionDetailsModal from './GcashTransactionDetailsModal';
+import {useAuth} from '../../context/authContext/authContext';
 
 const PaidSection = () => {
+    const { currentUser } = useAuth(); // Get current user from AuthContext
     const [billingList, setBillingList] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [startDate, setStartDate] = useState(null);
@@ -15,6 +17,8 @@ const PaidSection = () => {
     const [itemsPerPage, setItemsPerPage] = useState(25);
     const [sortField, setSortField] = useState('paidDate');
     const [sortDirection, setSortDirection] = useState('desc');
+    const [userClinicId, setUserClinicId] = useState(null); // Store user's clinic ID
+    const [loading, setLoading] = useState(true); // Loading state
     
     // Modal state
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -22,11 +26,43 @@ const PaidSection = () => {
     const [isGcashModalOpen, setIsGcashModalOpen] = useState(false);
     const [selectedGcashTransaction, setSelectedGcashTransaction] = useState(null);
 
-    // Clinic info - should match your main billing component
-    // const CLINIC_ID = 'your-clinic-id';
-
-    // Your original Firebase fetch logic - unchanged
+    // Fetch user's clinic ID
     useEffect(() => {
+        const fetchUserClinic = async () => {
+            if (!currentUser?.uid) {
+                setLoading(false);
+                return;
+            }
+
+            try {
+                const userRef = ref(database, `users/${currentUser.uid}`);
+                const snapshot = await get(userRef);
+                
+                if (snapshot.exists()) {
+                    const userData = snapshot.val();
+                    setUserClinicId(userData.clinicAffiliation || null);
+                } else {
+                    console.log("No user data found");
+                    setUserClinicId(null);
+                }
+            } catch (error) {
+                console.error("Error fetching user clinic:", error);
+                setUserClinicId(null);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchUserClinic();
+    }, [currentUser]);
+
+    // Fetch billing data filtered by clinic
+    useEffect(() => {
+        if (!userClinicId) {
+            setBillingList([]);
+            return;
+        }
+
         const billingRef = query(
             ref(database, "clinicBilling"), 
             orderByChild('status'), 
@@ -36,17 +72,19 @@ const PaidSection = () => {
         const unsubscribeBillingRef = onValue(billingRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                const billingData = Object.keys(data).map((key) => {
-                    const billing = data[key];
-                    // Filter by clinic if needed
-                    // if (billing.clinicId === CLINIC_ID) {
-                        return {
-                            ...billing,
-                            id: key,
-                        };
-                    // }
-                    // return null;
-                }).filter(Boolean); // Remove null entries
+                const billingData = Object.keys(data)
+                    .map((key) => {
+                        const billing = data[key];
+                        // Filter by user's clinic
+                        if (billing.clinicId === userClinicId) {
+                            return {
+                                ...billing,
+                                id: key,
+                            };
+                        }
+                        return null;
+                    })
+                    .filter(Boolean); // Remove null entries
                 
                 setBillingList(billingData);
             } else {
@@ -55,7 +93,7 @@ const PaidSection = () => {
         });
 
         return () => unsubscribeBillingRef();
-    }, []);
+    }, [userClinicId]);
 
     // Enhanced filtering with sorting
     const filteredBillings = useMemo(() => {
@@ -117,7 +155,7 @@ const PaidSection = () => {
         };
     }, [filteredBillings]);
 
-    // Calculate total paid amount - your original logic
+    // Calculate total paid amount
     const totalPaidAmount = filteredBillings.reduce((total, billing) => total + (billing.amount || 0), 0);
 
     // Pagination
@@ -142,36 +180,24 @@ const PaidSection = () => {
         setIsModalOpen(true);
     };
 
-    // Toggle GCash details expansion
-    const toggleGCashDetails = (billingId) => {
-        const newExpandedRows = new Set(expandedGCashRows);
-        if (newExpandedRows.has(billingId)) {
-            newExpandedRows.delete(billingId);
-        } else {
-            newExpandedRows.add(billingId);
-        }
-        setExpandedGCashRows(newExpandedRows);
-    };
-
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setSelectedBilling(null);
     };
 
     // Open GCash transaction details
-const handleViewGcashDetails = (billing) => {
-  setSelectedGcashTransaction(billing);
-  setIsGcashModalOpen(true);
-};
+    const handleViewGcashDetails = (billing) => {
+        setSelectedGcashTransaction(billing);
+        setIsGcashModalOpen(true);
+    };
 
-// Close GCash modal
-const handleCloseGcashModal = () => {
-  setIsGcashModalOpen(false);
-  setSelectedGcashTransaction(null);
-};
+    // Close GCash modal
+    const handleCloseGcashModal = () => {
+        setIsGcashModalOpen(false);
+        setSelectedGcashTransaction(null);
+    };
 
-
-    // Export functionality - Enhanced to include payment method
+    // Export functionality
     const handleExport = () => {
         const csvContent = [
             ['Patient Name', 'Amount', 'Payment Method', 'Status', 'Transaction Date', 'Paid Date', 'Clinic', 'GCash Reference'].join(','),
@@ -201,6 +227,32 @@ const handleCloseGcashModal = () => {
         setCurrentPage(1);
     }, [searchTerm, startDate, endDate]);
 
+    // Loading state
+    if (loading) {
+        return (
+            <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading billing data...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // No clinic ID found
+    if (!userClinicId) {
+        return (
+            <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <div className="text-6xl mb-4">⚠️</div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">No Clinic Associated</h2>
+                    <p className="text-gray-600">Your account is not associated with any clinic.</p>
+                    <p className="text-gray-500 text-sm mt-2">Please contact your administrator.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="p-6 bg-gray-50 min-h-screen">
             {/* Enhanced Header */}
@@ -221,7 +273,7 @@ const handleCloseGcashModal = () => {
                 </div>
             </div>
 
-            {/* Enhanced Summary Cards - Fixed grid layout */}
+            {/* Enhanced Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
                     <div className="flex items-center justify-between">
@@ -318,12 +370,10 @@ const handleCloseGcashModal = () => {
                 </div>
             </div>
 
-            {/* Fixed Search and Filter Controls - Improved layout */}
+            {/* Search and Filter Controls */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6">
                 <div className="space-y-4">
-                    {/* First row: Search and Items per page */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                        {/* Enhanced Search Input - spans 2 columns on large screens */}
                         <div className="relative lg:col-span-2">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                             <input
@@ -335,7 +385,6 @@ const handleCloseGcashModal = () => {
                             />
                         </div>
 
-                        {/* Items per page */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Per Page</label>
                             <select
@@ -351,7 +400,6 @@ const handleCloseGcashModal = () => {
                         </div>
                     </div>
 
-                    {/* Second row: Date Range Picker - Full width */}
                     <div className="w-full">
                         <DateRangePicker
                             startDate={startDate}
@@ -363,7 +411,7 @@ const handleCloseGcashModal = () => {
                 </div>
             </div>
 
-            {/* Enhanced Table with Payment Method Column */}
+            {/* Table */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
@@ -485,16 +533,6 @@ const handleCloseGcashModal = () => {
                                             <div className="text-6xl mb-4 opacity-50">💰</div>
                                             <h3 className="text-xl font-semibold text-gray-900 mb-2">No Paid Billings Found</h3>
                                             <p className="text-gray-500 mb-4">Try adjusting your search or date range</p>
-                                            <div className="flex items-center space-x-4 text-sm text-gray-400">
-                                                <div className="flex items-center">
-                                                    <Smartphone className="w-4 h-4 mr-1" />
-                                                    <span>GCash payments will show detailed transaction info</span>
-                                                </div>
-                                                <div className="flex items-center">
-                                                    <CreditCard className="w-4 h-4 mr-1" />
-                                                    <span>Cash payments are also tracked</span>
-                                                </div>
-                                            </div>
                                         </div>
                                     </td>
                                 </tr>
@@ -503,7 +541,7 @@ const handleCloseGcashModal = () => {
                     </table>
                 </div>
 
-                {/* Enhanced Pagination */}
+                {/* Pagination */}
                 {filteredBillings.length > 0 && totalPages > 1 && (
                     <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
                         <div className="flex items-center justify-between">
@@ -522,7 +560,6 @@ const handleCloseGcashModal = () => {
                                     <ChevronLeft size={16} />
                                 </button>
 
-                                {/* Page numbers */}
                                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                                     const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
                                     return (
@@ -553,7 +590,7 @@ const handleCloseGcashModal = () => {
                 )}
             </div>
 
-            {/* Enhanced Results Summary with Payment Method Breakdown */}
+            {/* Results Summary */}
             {filteredBillings.length > 0 && (
                 <div className="mt-6 p-6 bg-white rounded-lg border border-gray-200">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

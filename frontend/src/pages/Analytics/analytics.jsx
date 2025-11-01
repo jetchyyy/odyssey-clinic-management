@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { ref, get } from "firebase/database";
 import { database } from "../../firebase/firebase";
-import { useAuth } from "../../context/authContext/authContext"; // Assuming you have an auth context
+import { useAuth } from "../../context/authContext/authContext";
 import { 
   PieChart, 
   Pie, 
@@ -22,7 +22,7 @@ import {
 import CommonIllnessChart from "./CommonIllness";
 
 const Analytics = () => {
-  const { currentUser } = useAuth(); // Get current user from auth context
+  const { currentUser } = useAuth();
   const [userRole, setUserRole] = useState(null);
   const [userClinicAffiliation, setUserClinicAffiliation] = useState(null);
   const [clinicsData, setClinicsData] = useState({});
@@ -80,35 +80,18 @@ const Analytics = () => {
     }
   }, [userRole]);
 
-  // Filter data by clinic affiliation with patient clinic visits consideration
-  const filterDataByClinic = async (data, clinicField = 'clinicId', checkPatients = false) => {
+  // Simplified filter function - FIXED VERSION
+  const filterDataByClinic = (data, clinicField = 'clinicId') => {
     try {
-      let patientsData = {};
-      
-      // Fetch patients data if we need to check clinic visits
-      if (checkPatients) {
-        const patientsSnapshot = await get(ref(database, "patients"));
-        patientsData = patientsSnapshot.exists() ? patientsSnapshot.val() : {};
-      }
-
       if (userRole === 'superadmin') {
         if (selectedClinic === 'all') {
           return data;
         }
         
+        // Filter by selected clinic for superadmin
         const filtered = Object.fromEntries(
           Object.entries(data).filter(([key, value]) => {
-            // Primary filter by clinicId
-            const matchesClinic = value[clinicField] === selectedClinic;
-            
-            // Secondary filter by patient clinic visits if needed
-            if (checkPatients && value.patientId) {
-              const patient = patientsData[value.patientId];
-              const hasVisitedClinic = patient?.clinicsVisited?.[selectedClinic];
-              return matchesClinic && hasVisitedClinic;
-            }
-            
-            return matchesClinic;
+            return value[clinicField] === selectedClinic;
           })
         );
         
@@ -117,17 +100,7 @@ const Analytics = () => {
         // For admin and other roles, filter by their clinic affiliation
         const filtered = Object.fromEntries(
           Object.entries(data).filter(([key, value]) => {
-            // Primary filter by clinicId
-            const matchesClinic = value[clinicField] === userClinicAffiliation;
-            
-            // Secondary filter by patient clinic visits if needed
-            if (checkPatients && value.patientId) {
-              const patient = patientsData[value.patientId];
-              const hasVisitedClinic = patient?.clinicsVisited?.[userClinicAffiliation];
-              return matchesClinic && hasVisitedClinic;
-            }
-            
-            return matchesClinic;
+            return value[clinicField] === userClinicAffiliation;
           })
         );
         
@@ -135,7 +108,7 @@ const Analytics = () => {
       }
     } catch (error) {
       console.error("Error filtering data by clinic:", error);
-      return data; // Return unfiltered data on error
+      return data;
     }
   };
 
@@ -161,8 +134,13 @@ const Analytics = () => {
         let billingData = {};
         if (billingSnapshot.exists()) {
           billingData = billingSnapshot.val();
-          // Filter billing data by clinic (with patient clinic visits check if needed)
-          const filteredBilling = await filterDataByClinic(billingData, 'clinicId', true);
+          
+          console.log("Raw billing data count:", Object.keys(billingData).length);
+          
+          // Filter billing data by clinic (REMOVED patient clinic visits check)
+          const filteredBilling = filterDataByClinic(billingData, 'clinicId');
+          
+          console.log("Filtered billing data count:", Object.keys(filteredBilling).length);
           
           Object.values(filteredBilling).forEach(billing => {
             if (billing.status === "paid") {
@@ -189,13 +167,17 @@ const Analytics = () => {
           });
         }
 
+        console.log("Daily sales:", dailySales);
+        console.log("Monthly sales:", monthlySales);
+        console.log("Sales by service:", salesByService);
+
         // ======================
         // 2. Fetch clinicLabRequests to still track service sales
         // ======================
         const labSnapshot = await get(ref(database, "clinicLabRequests"));
         if (labSnapshot.exists()) {
           const labRequestsData = labSnapshot.val();
-          const filteredLabRequests = await filterDataByClinic(labRequestsData, 'clinicId', true);
+          const filteredLabRequests = filterDataByClinic(labRequestsData, 'clinicId');
           
           Object.values(filteredLabRequests).forEach(request => {
             const serviceFee = parseFloat(request.serviceFee || 0);
@@ -223,7 +205,7 @@ const Analytics = () => {
         if (itemsSnapshot.exists()) {
           inventoryItems = itemsSnapshot.val();
           // Filter inventory items by clinic
-          inventoryItems = await filterDataByClinic(inventoryItems, 'clinicId');
+          inventoryItems = filterDataByClinic(inventoryItems, 'clinicId');
         }
 
         // ======================
@@ -236,7 +218,7 @@ const Analytics = () => {
 
         if (transactionsSnapshot.exists()) {
           const transactionsData = transactionsSnapshot.val();
-          const filteredTransactions = await filterDataByClinic(transactionsData, 'clinicId');
+          const filteredTransactions = filterDataByClinic(transactionsData, 'clinicId');
           
           Object.values(filteredTransactions).forEach(transaction => {
             const type = transaction.transactionType || 'unknown';
@@ -249,40 +231,61 @@ const Analytics = () => {
             if (type.toLowerCase() === 'usage') {
               const itemDetails = inventoryItems[itemId];
               const itemCategory = itemDetails?.itemCategory || '';
+              const transactionCategory = transaction.itemCategory || '';
               const displayName = itemDetails?.itemName || itemName;
-              const genericName = itemDetails?.genericName;
+              const genericName = itemDetails?.genericName || transaction.genericName;
+              
+              // Use generic name for medicines if available
               const finalDisplayName =
-                genericName && itemCategory.toLowerCase().includes('medicine')
-                  ? `${genericName} (${itemDetails.brand || displayName})`
+                genericName && (itemCategory.toLowerCase().includes('medicine') || transactionCategory.toLowerCase().includes('medicine'))
+                  ? `${genericName} (${itemDetails?.brand || displayName})`
                   : displayName;
 
-              const itemGroup = itemDetails?.itemGroup?.toLowerCase() || '';
+              // Get itemGroup from both item details and transaction
+              const itemGroup = (itemDetails?.itemGroup || transaction.itemGroup || '').toLowerCase();
+              
+              // Combine both category sources for better detection
+              const combinedCategory = `${itemCategory} ${transactionCategory} ${itemGroup} ${itemName}`.toLowerCase();
 
-              if (
+              // Enhanced medicine detection
+              const isMedicine = 
                 itemGroup === 'medicine' ||
-                itemCategory.toLowerCase().includes('medicine') ||
-                itemCategory.toLowerCase().includes('tablet') ||
-                itemCategory.toLowerCase().includes('capsule')
-              ) {
-                medicineUsage[finalDisplayName] = (medicineUsage[finalDisplayName] || 0) + quantity;
-              } else if (
+                combinedCategory.includes('medicine') ||
+                combinedCategory.includes('tablet') ||
+                combinedCategory.includes('capsule') ||
+                combinedCategory.includes('syrup') ||
+                combinedCategory.includes('suspension') ||
+                combinedCategory.includes('drug') ||
+                combinedCategory.includes('pharmaceutical') ||
+                // Common medicine names
+                finalDisplayName.toLowerCase().includes('paracetamol') ||
+                finalDisplayName.toLowerCase().includes('ibuprofen') ||
+                finalDisplayName.toLowerCase().includes('amoxicillin') ||
+                finalDisplayName.toLowerCase().includes('cetirizine') ||
+                finalDisplayName.toLowerCase().includes('inoplox') ||
+                finalDisplayName.toLowerCase().includes('mefenamic') ||
+                finalDisplayName.toLowerCase().includes('antibiotic') ||
+                finalDisplayName.toLowerCase().includes('vitamin');
+
+              // Enhanced supply detection
+              const isSupply = 
                 itemGroup === 'supply' ||
-                itemCategory.toLowerCase().includes('supply') ||
-                itemCategory.toLowerCase().includes('equipment') ||
-                itemCategory.toLowerCase().includes('consumable')
-              ) {
+                combinedCategory.includes('supply') ||
+                combinedCategory.includes('equipment') ||
+                combinedCategory.includes('consumable') ||
+                combinedCategory.includes('gauze') ||
+                combinedCategory.includes('bandage') ||
+                combinedCategory.includes('syringe') ||
+                combinedCategory.includes('glove') ||
+                combinedCategory.includes('cotton');
+
+              if (isMedicine) {
+                medicineUsage[finalDisplayName] = (medicineUsage[finalDisplayName] || 0) + quantity;
+              } else if (isSupply) {
                 supplyUsage[finalDisplayName] = (supplyUsage[finalDisplayName] || 0) + quantity;
               } else {
-                if (
-                  finalDisplayName.toLowerCase().includes('paracetamol') ||
-                  finalDisplayName.toLowerCase().includes('medicine') ||
-                  finalDisplayName.toLowerCase().includes('tablet') ||
-                  finalDisplayName.toLowerCase().includes('capsule')
-                ) {
-                  medicineUsage[finalDisplayName] = (medicineUsage[finalDisplayName] || 0) + quantity;
-                } else {
-                  supplyUsage[finalDisplayName] = (supplyUsage[finalDisplayName] || 0) + quantity;
-                }
+                // If still unclear, default to supply
+                supplyUsage[finalDisplayName] = (supplyUsage[finalDisplayName] || 0) + quantity;
               }
             }
           });
