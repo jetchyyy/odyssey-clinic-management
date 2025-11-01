@@ -60,11 +60,9 @@ const Analytics = () => {
     fetchUserData();
   }, [currentUser]);
 
-  // Fetch clinics data for superadmin
+  // Fetch clinics data for both superadmin and regular users
   useEffect(() => {
     const fetchClinics = async () => {
-      if (userRole !== 'superadmin') return;
-      
       try {
         const clinicsSnapshot = await get(ref(database, "clinics"));
         if (clinicsSnapshot.exists()) {
@@ -603,36 +601,6 @@ const Analytics = () => {
 
       </div>
 
-      {/* Inventory Transactions Overview */}
-      {inventoryTransactionsData.length > 0 && (
-        <div style={{
-          backgroundColor: "white",
-          padding: "20px",
-          borderRadius: "10px",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-          marginBottom: "30px"
-        }}>
-          <h3 style={{ textAlign: "center", marginBottom: "20px", color: "#333" }}>
-            Inventory Transaction Types
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={inventoryTransactionsData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Area 
-                type="monotone" 
-                dataKey="value" 
-                stroke="#8884d8" 
-                fill="#8884d8" 
-                fillOpacity={0.6}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
       {/* Summary Statistics */}
       <div style={{
         backgroundColor: "white",
@@ -665,12 +633,6 @@ const Analytics = () => {
             <h4 style={{ margin: "0 0 10px 0", color: "#FFBB28" }}>Supplies Used</h4>
             <p style={{ fontSize: "20px", fontWeight: "bold", margin: 0 }}>
               {supplyUsageData.length}
-            </p>
-          </div>
-          <div>
-            <h4 style={{ margin: "0 0 10px 0", color: "#FF8042" }}>Transaction Types</h4>
-            <p style={{ fontSize: "20px", fontWeight: "bold", margin: 0 }}>
-              {inventoryTransactionsData.length}
             </p>
           </div>
           <div>

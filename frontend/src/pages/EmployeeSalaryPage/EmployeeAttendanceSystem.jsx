@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ref, get, update } from 'firebase/database';
 import { database } from '../../firebase/firebase';
 import { DollarSign, Database, Loader, Search, Users } from 'lucide-react';
+import { useAuth } from '../../context/authContext/authContext'; // Import useAuth
 
 // Import components
 import SalaryCard from './SalaryCard';
@@ -10,9 +11,11 @@ import SetRateModal from './SetRateModal';
 import Pagination from './Pagination';
 
 const EmployeeSalarySystem = () => {
+  const { currentUser } = useAuth(); // Get current user from auth context
   const [employees, setEmployees] = useState([]);
   const [attendanceData, setAttendanceData] = useState({});
   const [loading, setLoading] = useState(true);
+  const [userClinicAffiliation, setUserClinicAffiliation] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [viewMode, setViewMode] = useState('salary');
   
@@ -29,9 +32,42 @@ const EmployeeSalarySystem = () => {
   
   const excludedRoles = ['patient', 'specialist', 'superadmin', 'admin'];
 
-  // Fetch data from Firebase
+  // Fetch current user's clinic affiliation
+  useEffect(() => {
+    const fetchUserClinic = async () => {
+      if (!currentUser?.uid) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const userRef = ref(database, `users/${currentUser.uid}`);
+        const snapshot = await get(userRef);
+        
+        if (snapshot.exists()) {
+          const userData = snapshot.val();
+          setUserClinicAffiliation(userData.clinicAffiliation || null);
+        } else {
+          console.log("No user data found");
+          setUserClinicAffiliation(null);
+        }
+      } catch (error) {
+        console.error("Error fetching user clinic:", error);
+        setUserClinicAffiliation(null);
+      }
+    };
+
+    fetchUserClinic();
+  }, [currentUser]);
+
+  // Fetch data from Firebase - filtered by clinic
   useEffect(() => {
     const fetchDataFromFirebase = async () => {
+      if (!userClinicAffiliation) {
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         
@@ -39,17 +75,20 @@ const EmployeeSalarySystem = () => {
         const usersSnapshot = await get(usersRef);
         const usersData = usersSnapshot.exists() ? usersSnapshot.val() : {};
         
+        // Filter employees by clinic affiliation
         const employeesList = Object.entries(usersData).map(([id, user]) => ({
           id,
           name: user.name || user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown',
           email: user.email,
           role: user.role,
           department: user.department,
+          clinicAffiliation: user.clinicAffiliation,
           hourlyRate: user.hourlyRate || 0,
           isActive: user.isActive !== false,
         })).filter(emp => 
           emp.isActive && 
-          !excludedRoles.includes(emp.role?.toLowerCase())
+          !excludedRoles.includes(emp.role?.toLowerCase()) &&
+          emp.clinicAffiliation === userClinicAffiliation // Filter by same clinic
         );
 
         const attendanceRef = ref(database, 'attendance');
@@ -66,7 +105,7 @@ const EmployeeSalarySystem = () => {
     };
 
     fetchDataFromFirebase();
-  }, []);
+  }, [userClinicAffiliation]);
 
   const updateHourlyRateInFirebase = async (userId, newRate) => {
     try {
@@ -177,6 +216,7 @@ const EmployeeSalarySystem = () => {
     setCurrentPage(1);
   }, [searchTerm]);
 
+  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
@@ -184,6 +224,22 @@ const EmployeeSalarySystem = () => {
           <Loader className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="text-gray-600 font-medium">Loading employee data...</p>
           <p className="text-sm text-gray-500 mt-2">Connecting to Firebase Database</p>
+        </div>
+      </div>
+    );
+  }
+
+  // No clinic affiliation state
+  if (!userClinicAffiliation) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-lg p-8 text-center max-w-md">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Users className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">No Clinic Associated</h2>
+          <p className="text-gray-600 mb-1">Your account is not associated with any clinic.</p>
+          <p className="text-gray-500 text-sm">Please contact your administrator to assign a clinic.</p>
         </div>
       </div>
     );
@@ -200,7 +256,7 @@ const EmployeeSalarySystem = () => {
             </div>
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900">Employee Salary System</h1>
-              <p className="text-gray-600">Modern payroll calculation and management</p>
+              <p className="text-gray-600">Modern payroll calculation and management - Your Clinic</p>
             </div>
           </div>
         </div>
@@ -266,7 +322,11 @@ const EmployeeSalarySystem = () => {
           <div className="bg-white rounded-xl shadow-lg p-12 text-center">
             <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No employees found</h3>
-            <p className="text-gray-600">Try adjusting your search criteria</p>
+            <p className="text-gray-600">
+              {searchTerm 
+                ? 'Try adjusting your search criteria' 
+                : 'No employees in your clinic yet'}
+            </p>
           </div>
         )}
 
