@@ -16,6 +16,7 @@ const AddDepartmentModal = ({ showModal, setShowModal, onAddDepartment, existing
   const [accessMedicalCertificate, setAccessMedicalCertificate] = useState(false);
   const [accessInventoryTransactions, setAccessInventoryTransactions] = useState(false);
   const [accessTransferStocks, setAccessTransferStocks] = useState(false);
+  const [accessTeleconsultation, setAccessTeleconsultation] = useState(false);
 
   // Mobile Features permissions
   const [accessDoctorScreen, setAccessDoctorScreen] = useState(false);
@@ -30,7 +31,7 @@ const AddDepartmentModal = ({ showModal, setShowModal, onAddDepartment, existing
     if (showSuccessModal) {
       const timer = setTimeout(() => {
         setShowSuccessModal(false);
-      }, 5000); // 3 seconds
+      }, 5000);
 
       return () => clearTimeout(timer);
     }
@@ -62,6 +63,7 @@ const AddDepartmentModal = ({ showModal, setShowModal, onAddDepartment, existing
     setAccessMedicalCertificate(false);
     setAccessInventoryTransactions(false);
     setAccessTransferStocks(false);
+    setAccessTeleconsultation(false);
     setAccessDoctorScreen(false);
     setAccessLabScreen(false);
     setAccessAdminScreen(false);
@@ -97,6 +99,7 @@ const AddDepartmentModal = ({ showModal, setShowModal, onAddDepartment, existing
           accessMedicalCertificate,
           accessInventoryTransactions,
           accessTransferStocks,
+          accessTeleconsultation,
           // Mobile Features permissions
           accessDoctorScreen,
           accessLabScreen,
@@ -110,31 +113,13 @@ const AddDepartmentModal = ({ showModal, setShowModal, onAddDepartment, existing
     onAddDepartment(newDepartment, departmentName);
 
     resetForm();
-    setShowModal(false); // close main modal
+    setShowModal(false);
     setShowSuccessModal(true);
   };
 
   const handleClose = () => {
     resetForm();
     setShowModal(false);
-    
-    // Reset form
-    setDepartmentName("");
-    setAccessInventory(false);
-    setAccessOverallInventory(false);
-    setAccessInventoryHistory(false);
-    setAccessPatients(false);
-    setAccessSettings(false);
-    setAccessBilling(false);
-    setAccessLaboratory(false);
-    setAccessAnalytics(false);
-    setAccessMedicalCertificate(false);
-    setAccessInventoryTransactions(false);
-    setAccessDoctorScreen(false);
-    setAccessLabScreen(false);
-    setAccessAdminScreen(false);
-    setAccessClinicStaffScreen(false);
-    setAccessNurseScreen(false);
   };
 
   if (!showModal) return null;
@@ -284,6 +269,15 @@ const AddDepartmentModal = ({ showModal, setShowModal, onAddDepartment, existing
               <label className="flex items-center mb-2">
                 <input
                   type="checkbox"
+                  checked={accessTeleconsultation}
+                  onChange={() => setAccessTeleconsultation(!accessTeleconsultation)}
+                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="ml-2 text-gray-700">Access Teleconsultation</span>
+              </label>
+              <label className="flex items-center mb-2">
+                <input
+                  type="checkbox"
                   checked={accessSettings}
                   onChange={() => setAccessSettings(!accessSettings)}
                   className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
@@ -357,8 +351,6 @@ const AddDepartmentModal = ({ showModal, setShowModal, onAddDepartment, existing
                 Create Department
               </button>
             </div>
-
-            
           </form>
         </div>
       </div>

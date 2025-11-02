@@ -177,7 +177,7 @@ const DepartmentsTable = () => {
   };
 
   const getTotalPermissions = () => {
-    return 17; // 11 web permissions + 5 mobile permissions + 1 SuperAdmin exclusive permission
+    return 18; // 11 web permissions + 5 mobile permissions + 1 SuperAdmin exclusive permission
   };
 
   const stats = getPermissionStats();

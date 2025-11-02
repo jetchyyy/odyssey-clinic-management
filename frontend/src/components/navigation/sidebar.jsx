@@ -4,29 +4,17 @@ import { useNavigate, Link, useLocation } from "react-router-dom";
 import { doSignOut } from "../../firebase/auth";
 import {
   HomeIcon,
-  ClipboardDocumentListIcon,
   ChartBarIcon,
   PowerIcon,
   Bars3Icon,
   Cog8ToothIcon,
   UserGroupIcon,
   CreditCardIcon,
-  ArchiveBoxIcon,
   ChevronDownIcon,
   CubeIcon,
-  ClipboardDocumentIcon,
-  ArchiveBoxArrowDownIcon,
-  ArrowPathRoundedSquareIcon,
-  PaperAirplaneIcon,
   ClipboardDocumentCheckIcon,
-  BeakerIcon,
   CalendarDaysIcon,
-  DocumentTextIcon,
-  BanknotesIcon,
   ArrowsRightLeftIcon,
-  InboxStackIcon,
-  ClockIcon,
-  BuildingOffice2Icon,
   UsersIcon,
   VideoCameraIcon,
   TruckIcon,
@@ -204,31 +192,29 @@ const Sidebar = () => {
               <div className="ml-auto w-2 h-2 bg-indigo-400 rounded-full animate-pulse" />
             )}
           </Link>
-
-          {(department === "Doctor" ||
-            department === "Admin" ||
-            permissions?.accessPatients) && (
-            <Link
-              to="/teleconsultation"
-              className={`group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
-                isActive("/teleconsultation")
-                  ? "bg-gradient-to-r from-purple-600/20 to-pink-600/20 text-white border border-purple-500/30 shadow-lg shadow-purple-500/20"
-                  : "text-slate-300 hover:text-white hover:bg-slate-800/60 border border-transparent"
-              }`}
-            >
-              <VideoCameraIcon
-                className={`w-5 h-5 mr-3 transition-colors ${
-                  isActive("/teleconsultation")
-                    ? "text-purple-400"
-                    : "text-slate-400 group-hover:text-purple-400"
-                }`}
-              />
-              <span>Teleconsultation</span>
-              {isActive("/teleconsultation") && (
-                <div className="ml-auto w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
-              )}
-            </Link>
-          )}
+          
+{permissions?.accessTeleconsultation && (
+  <Link
+    to="/teleconsultation"
+    className={`group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
+      isActive("/teleconsultation")
+        ? "bg-gradient-to-r from-purple-600/20 to-pink-600/20 text-white border border-purple-500/30 shadow-lg shadow-purple-500/20"
+        : "text-slate-300 hover:text-white hover:bg-slate-800/60 border border-transparent"
+    }`}
+  >
+    <VideoCameraIcon
+      className={`w-5 h-5 mr-3 transition-colors ${
+        isActive("/teleconsultation")
+          ? "text-purple-400"
+          : "text-slate-400 group-hover:text-purple-400"
+      }`}
+    />
+    <span>Teleconsultation</span>
+    {isActive("/teleconsultation") && (
+      <div className="ml-auto w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
+    )}
+  </Link>
+)}
 
           {/* Inventory Dropdown */}
           {permissions?.accessInventory && (

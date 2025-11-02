@@ -16,6 +16,7 @@ const EditDepartmentModal = ({ showModal, setShowModal, department, onEditDepart
     accessMedicalCertificate: false,
     accessInventoryTransactions: false,
     accessTransferStocks: false,
+    accessTeleconsultation: false,
     accessClinicManagement: false,
     // Mobile Features permissions
     accessDoctorScreen: false,
@@ -41,6 +42,7 @@ const EditDepartmentModal = ({ showModal, setShowModal, department, onEditDepart
         accessMedicalCertificate: department.permissions?.accessMedicalCertificate || false,
         accessInventoryTransactions: department.permissions?.accessInventoryTransactions || false,
         accessTransferStocks: department.permissions?.accessTransferStocks || false,
+        accessTeleconsultation: department.permissions?.accessTeleconsultation || false,
         accessClinicManagement: department.permissions?.accessClinicManagement || false,
         // Mobile Features permissions
         accessDoctorScreen: department.permissions?.accessDoctorScreen || false,
@@ -49,7 +51,7 @@ const EditDepartmentModal = ({ showModal, setShowModal, department, onEditDepart
         accessClinicStaffScreen: department.permissions?.accessClinicStaffScreen || false,
         accessNurseScreen: department.permissions?.accessNurseScreen || false,
       });
-      setError(''); // Reset error when department changes
+      setError('');
     }
   }, [department]);
 
@@ -57,7 +59,6 @@ const EditDepartmentModal = ({ showModal, setShowModal, department, onEditDepart
     const value = e.target.value.toLowerCase();
     setDepartmentName(value);
     
-    // Check for duplicates only if the name is different from the original department name
     if (value && value !== department.id.toLowerCase() && existingDepartments.includes(value)) {
       setError('A department with this name already exists');
     } else {
@@ -68,9 +69,8 @@ const EditDepartmentModal = ({ showModal, setShowModal, department, onEditDepart
   const handleChange = (e) => {
     const { name, type, checked } = e.target;
 
-    // Prevent non-SuperAdmin departments from accessing SuperAdmin exclusive permissions
     if (name === 'accessClinicManagement' && department.id !== 'SuperAdmin') {
-      return; // Don't allow change
+      return;
     }
 
     setPermissions((prevPermissions) => ({
@@ -82,13 +82,11 @@ const EditDepartmentModal = ({ showModal, setShowModal, department, onEditDepart
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Final validation before saving
     if (!departmentName.trim()) {
       setError('Department name is required');
       return;
     }
 
-    // Check for duplicates one more time
     if (departmentName.toLowerCase() !== department.id.toLowerCase() && 
         existingDepartments.includes(departmentName.toLowerCase())) {
       setError('A department with this name already exists');
@@ -113,7 +111,6 @@ const EditDepartmentModal = ({ showModal, setShowModal, department, onEditDepart
     setShowModal(false);
   };
 
-  // Helper function to format permission labels
   const formatPermissionLabel = (permission) => {
     return permission
       .replace(/access/g, '')
@@ -122,7 +119,6 @@ const EditDepartmentModal = ({ showModal, setShowModal, department, onEditDepart
       .trim();
   };
 
-  // Separate permissions into web and mobile categories
   const webPermissions = [
     'accessInventory',
     'accessOverallInventory', 
@@ -134,6 +130,7 @@ const EditDepartmentModal = ({ showModal, setShowModal, department, onEditDepart
     'accessMedicalCertificate',
     'accessInventoryTransactions',
     'accessTransferStocks',
+    'accessTeleconsultation',
     'accessSettings'
   ];
 
@@ -145,7 +142,6 @@ const EditDepartmentModal = ({ showModal, setShowModal, department, onEditDepart
     'accessNurseScreen'
   ];
 
-  // SuperAdmin exclusive permissions
   const superAdminPermissions = [
     'accessClinicManagement'
   ];

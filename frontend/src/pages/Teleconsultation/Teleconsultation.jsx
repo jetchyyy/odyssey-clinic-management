@@ -22,7 +22,7 @@ const Teleconsultation = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedConsultation, setSelectedConsultation] = useState(null);
-  const [activeTab, setActiveTab] = useState('upcoming');
+  const [activeTab, setActiveTab] = useState('all');
 
   useEffect(() => {
     if (!userLoggedIn) return;
@@ -127,6 +127,13 @@ const Teleconsultation = () => {
     console.log("All consultations:", consultations);
     
     switch (activeTab) {
+      case 'all':
+        // Sort by date and time, most recent first
+        return consultations.sort((a, b) => {
+          const dateA = new Date(a.scheduledDate + 'T' + a.scheduledTime);
+          const dateB = new Date(b.scheduledDate + 'T' + b.scheduledTime);
+          return dateB - dateA;
+        });
       case 'upcoming':
         const upcoming = consultations.filter(c => {
           const consultationDateTime = new Date(c.scheduledDate + 'T' + c.scheduledTime);
@@ -136,6 +143,16 @@ const Teleconsultation = () => {
         });
         console.log("Upcoming consultations:", upcoming);
         return upcoming;
+      case 'past':
+        const past = consultations.filter(c => {
+          const consultationDateTime = new Date(c.scheduledDate + 'T' + c.scheduledTime);
+          return consultationDateTime < now;
+        }).sort((a, b) => {
+          const dateA = new Date(a.scheduledDate + 'T' + a.scheduledTime);
+          const dateB = new Date(b.scheduledDate + 'T' + b.scheduledTime);
+          return dateB - dateA; // Most recent first
+        });
+        return past;
       case 'completed':
         return consultations.filter(c => c.status === 'completed');
       case 'cancelled':
@@ -216,7 +233,7 @@ const Teleconsultation = () => {
       {/* Tabs */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
-          {['upcoming', 'completed', 'cancelled'].map((tab) => (
+          {['all', 'upcoming', 'past', 'completed', 'cancelled'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -226,7 +243,7 @@ const Teleconsultation = () => {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              {tab} Consultations
+              {tab} {tab !== 'all' && 'Consultations'}
             </button>
           ))}
         </nav>
@@ -239,7 +256,9 @@ const Teleconsultation = () => {
             <VideoCameraIcon className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No consultations</h3>
             <p className="mt-1 text-sm text-gray-500">
+              {activeTab === 'all' && 'No consultations found.'}
               {activeTab === 'upcoming' && 'No upcoming consultations scheduled.'}
+              {activeTab === 'past' && 'No past consultations.'}
               {activeTab === 'completed' && 'No completed consultations.'}
               {activeTab === 'cancelled' && 'No cancelled consultations.'}
             </p>

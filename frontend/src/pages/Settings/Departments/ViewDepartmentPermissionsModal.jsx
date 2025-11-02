@@ -15,7 +15,8 @@ import {
   UserCheck,
   UserPlus,
   Package,
-  Building2
+  Building2,
+  Video
 } from 'lucide-react';
 
 const ViewDepartmentPermissionsModal = ({ showModal, setShowModal, department }) => {
@@ -34,6 +35,7 @@ const ViewDepartmentPermissionsModal = ({ showModal, setShowModal, department })
       accessMedicalCertificate: <FileText size={16} />,
       accessInventoryTransactions: <ArrowRightLeft size={16} />,
       accessTransferStocks: <Package size={16} />,
+      accessTeleconsultation: <Video size={16} />,
       accessClinicManagement: <Building2 size={16} />,
       // Mobile Features icons
       accessDoctorScreen: <Stethoscope size={16} />,
@@ -64,6 +66,7 @@ const ViewDepartmentPermissionsModal = ({ showModal, setShowModal, department })
     'accessMedicalCertificate',
     'accessInventoryTransactions',
     'accessTransferStocks',
+    'accessTeleconsultation',
     'accessSettings'
   ];
 
@@ -75,7 +78,6 @@ const ViewDepartmentPermissionsModal = ({ showModal, setShowModal, department })
     'accessNurseScreen'
   ];
 
-  // SuperAdmin exclusive permissions
   const superAdminPermissions = [
     'accessClinicManagement'
   ];
