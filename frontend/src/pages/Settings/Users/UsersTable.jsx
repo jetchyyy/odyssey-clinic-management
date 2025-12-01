@@ -12,12 +12,17 @@ import {
   Mail,
   ChevronLeft,
   ChevronRight,
+  Filter,
 } from "lucide-react";
 import EditUserModal from "./EditUserModal";
 import AddUserModal from "./AddUserModal";
+import { useAuth } from "../../../context/authContext/authContext";
 
 const UsersTable = () => {
+  const { currentUser: authUser, role } = useAuth();
+  const [currentUserData, setCurrentUserData] = useState(null);
   const [users, setUsers] = useState([]);
+  const [clinics, setClinics] = useState({});
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [editedData, setEditedData] = useState({
     email: "",
@@ -30,11 +35,37 @@ const UsersTable = () => {
   const [selectedUserId, setSelectedUserId] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
+  const [selectedClinic, setSelectedClinic] = useState("all");
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 15;
 
+  // Fetch current user's full data from database
+  useEffect(() => {
+    if (authUser) {
+      const userRef = ref(database, `users/${authUser.uid}`);
+      const unsubscribe = onValue(userRef, (snapshot) => {
+        if (snapshot.exists()) {
+          setCurrentUserData({ id: authUser.uid, ...snapshot.val() });
+        }
+      });
+      return () => unsubscribe();
+    }
+  }, [authUser]);
+
+  // Fetch clinics data
+  useEffect(() => {
+    const clinicsRef = ref(database, "clinics");
+    const unsubscribe = onValue(clinicsRef, (snapshot) => {
+      const clinicsData = snapshot.val() || {};
+      setClinics(clinicsData);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Fetch users data
   useEffect(() => {
     const usersRef = ref(database, "users");
     const unsubscribe = onValue(usersRef, (snapshot) => {
@@ -43,17 +74,16 @@ const UsersTable = () => {
         usersList.push({ id: childSnapshot.key, ...childSnapshot.val() });
       });
       setUsers(usersList);
-      setFilteredUsers(usersList);
-      // Reset to first page when users data changes
       setCurrentPage(1);
     });
 
     return () => unsubscribe();
   }, []);
 
+  // Filter users based on role, clinic, and search
   useEffect(() => {
-    const filtered = users.filter((user) => {
-      // Filter out users with 'specialist' and 'superadmin' roles
+    let filtered = users.filter((user) => {
+      // Filter out users with 'specialist' and 'superadmin' roles from the list
       if (
         user?.role?.toLowerCase() === "specialist" ||
         user?.role?.toLowerCase() === "superadmin"
@@ -61,35 +91,59 @@ const UsersTable = () => {
         return false;
       }
 
-      const fullName = `${user?.firstName || ""} ${
-        user?.lastName || ""
-      }`.toLowerCase();
-      const searchLower = searchTerm.toLowerCase();
-
-      // Debugging line to catch any undefined fields
-      if (
-        typeof user?.email !== "string" ||
-        typeof user?.firstName !== "string" ||
-        typeof user?.lastName !== "string" ||
-        typeof user?.role !== "string" ||
-        typeof user?.department !== "string"
-      ) {
-        console.log("⚠️ Malformed user object:", user);
+      // Filter out patients
+      if (user?.role?.toLowerCase() === "patient") {
+        return false;
       }
 
-      return (
-        (user?.email || "").toLowerCase().includes(searchLower) ||
-        (user?.firstName || "").toLowerCase().includes(searchLower) ||
-        (user?.lastName || "").toLowerCase().includes(searchLower) ||
-        fullName.includes(searchLower) ||
-        (user?.role || "").toLowerCase().includes(searchLower) ||
-        (user?.department || "").toLowerCase().includes(searchLower)
-      );
+      return true;
     });
+
+    // Apply clinic filtering based on current user's role
+    if (currentUserData && role) {
+      if (role?.toLowerCase() === "admin") {
+        // Admin: Only show users from their clinic
+        filtered = filtered.filter(
+          (user) => user.clinicAffiliation === currentUserData.clinicAffiliation
+        );
+      } else if (role?.toLowerCase() === "superadmin") {
+        // Superadmin: Apply clinic filter dropdown
+        if (selectedClinic !== "all") {
+          filtered = filtered.filter(
+            (user) => user.clinicAffiliation === selectedClinic
+          );
+        }
+      }
+    }
+
+    // Apply search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter((user) => {
+        const fullName = `${user?.firstName || ""} ${
+          user?.lastName || ""
+        }`.toLowerCase();
+
+        // Get clinic name for search
+        const clinicName = user.clinicAffiliation
+          ? (clinics[user.clinicAffiliation]?.name || "").toLowerCase()
+          : "";
+
+        return (
+          (user?.email || "").toLowerCase().includes(searchLower) ||
+          (user?.firstName || "").toLowerCase().includes(searchLower) ||
+          (user?.lastName || "").toLowerCase().includes(searchLower) ||
+          fullName.includes(searchLower) ||
+          (user?.role || "").toLowerCase().includes(searchLower) ||
+          (user?.department || "").toLowerCase().includes(searchLower) ||
+          clinicName.includes(searchLower)
+        );
+      });
+    }
+
     setFilteredUsers(filtered);
-    // Reset to first page when search results change
     setCurrentPage(1);
-  }, [searchTerm, users]);
+  }, [searchTerm, users, clinics, currentUserData, role, selectedClinic]);
 
   const handleDeleteUser = async () => {
     if (userToDelete) {
@@ -116,17 +170,11 @@ const UsersTable = () => {
   };
 
   const getUserStats = () => {
-    // Filter out specialists and superadmins from stats
-    const countableUsers = users.filter(
-      (user) =>
-        user?.role?.toLowerCase() !== "specialist" &&
-        user?.role?.toLowerCase() !== "superadmin"
-    );
-    const totalUsers = countableUsers.length;
-    const adminUsers = countableUsers.filter(
+    const totalUsers = filteredUsers.length;
+    const adminUsers = filteredUsers.filter(
       (user) => user.role === "admin"
     ).length;
-    const activeUsers = countableUsers.filter(
+    const activeUsers = filteredUsers.filter(
       (user) => user.status !== "inactive"
     ).length;
 
@@ -146,6 +194,10 @@ const UsersTable = () => {
       Operations: <Building size={20} />,
     };
     return icons[department] || <Users size={20} />;
+  };
+
+  const getClinicName = (clinicId) => {
+    return clinics[clinicId]?.name || "N/A";
   };
 
   // Pagination calculations
@@ -170,7 +222,6 @@ const UsersTable = () => {
     }
   };
 
-  // Generate page numbers for pagination
   const getPageNumbers = () => {
     const pages = [];
     const maxVisiblePages = 5;
@@ -207,6 +258,7 @@ const UsersTable = () => {
   };
 
   const stats = getUserStats();
+  const isSuperAdmin = role?.toLowerCase() === "superadmin";
 
   return (
     <div className="w-full bg-white rounded-lg shadow-md">
@@ -219,6 +271,11 @@ const UsersTable = () => {
             </h2>
             <p className="text-gray-600 mt-1">
               Manage user accounts and access
+              {!isSuperAdmin && currentUserData?.clinicAffiliation && (
+                <span className="ml-2 text-sm font-medium text-blue-600">
+                  ({getClinicName(currentUserData.clinicAffiliation)})
+                </span>
+              )}
             </p>
           </div>
           <button
@@ -253,8 +310,9 @@ const UsersTable = () => {
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="mb-6">
+        {/* Search and Filter Bar */}
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Search Bar */}
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search size={20} className="text-gray-400" />
@@ -267,6 +325,27 @@ const UsersTable = () => {
               className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
+
+          {/* Clinic Filter (Only for Superadmin) */}
+          {isSuperAdmin && (
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Filter size={20} className="text-gray-400" />
+              </div>
+              <select
+                value={selectedClinic}
+                onChange={(e) => setSelectedClinic(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">All Clinics</option>
+                {Object.entries(clinics).map(([id, clinic]) => (
+                  <option key={id} value={id}>
+                    {clinic.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Pagination Info */}
@@ -290,6 +369,7 @@ const UsersTable = () => {
               <tr>
                 <th className="px-4 py-3 text-left">User</th>
                 <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3">Clinic</th>
                 <th className="px-4 py-3">Department</th>
                 <th className="px-4 py-3">Role</th>
                 <th className="px-4 py-3">Actions</th>
@@ -342,8 +422,16 @@ const UsersTable = () => {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-center space-x-1">
+                      <Building size={14} className="text-gray-400" />
+                      <span className="text-sm">
+                        {getClinicName(user.clinicAffiliation)}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-center space-x-1">
                       {getDepartmentIcon(user.department)}
-                      <span className="text-sm">{user.department}</span>
+                      <span className="text-sm">{user.department || "N/A"}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -385,7 +473,7 @@ const UsersTable = () => {
               ))}
               {currentUsers.length === 0 && (
                 <tr>
-                  <td colSpan="5" className="px-6 py-8 text-gray-500">
+                  <td colSpan="6" className="px-6 py-8 text-gray-500">
                     <div className="flex flex-col items-center space-y-2">
                       <Users size={32} className="text-gray-300" />
                       <span>No users found.</span>
@@ -468,7 +556,7 @@ const UsersTable = () => {
           showModal={showAddUserModal}
           setShowModal={setShowAddUserModal}
           onUserAdded={() => {
-            /* leave blank sa*/
+            /* leave blank */
           }}
         />
       )}

@@ -23,18 +23,37 @@ const SignIn = () => {
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    if (!isSigningIn) {
-      setIsSigningIn(true);
-      try {
-        await doSignInWithEmailAndPassword(email, password);
-      } catch (error) {
-        let message = "An error occurred. Please try again.";
-        if (error.code === "auth/invalid-credential") {
-          message = "Invalid password or email.";
-        }
-        setErrorMessage(message);
-        setIsSigningIn(false);
+    
+    // Prevent multiple submissions
+    if (isSigningIn) return;
+    
+    setIsSigningIn(true);
+    
+    try {
+      // Firebase handles encryption over HTTPS
+      await doSignInWithEmailAndPassword(email, password);
+      
+      // Clear sensitive data from memory after successful login
+      setPassword("");
+      setEmail("");
+    } catch (error) {
+      let message = "An error occurred. Please try again.";
+      if (error.code === "auth/invalid-credential") {
+        message = "Invalid password or email.";
+      } else if (error.code === "auth/user-not-found") {
+        message = "No account found with this email.";
+      } else if (error.code === "auth/wrong-password") {
+        message = "Incorrect password.";
+      } else if (error.code === "auth/too-many-requests") {
+        message = "Too many failed attempts. Please try again later.";
       }
+      
+      setErrorMessage(message);
+      
+      // Clear password on error for security
+      setPassword("");
+    } finally {
+      setIsSigningIn(false);
     }
   };
 
@@ -49,7 +68,6 @@ const SignIn = () => {
           alt="OddySys"
           className="object-cover w-full h-full scale-105 transition-transform duration-700 hover:scale-100"
         />
-        
       </div>
 
       {/* Right: Login Form */}
@@ -67,7 +85,7 @@ const SignIn = () => {
 
           {/* Form Card */}
           <div className="backdrop-blur-xl bg-white/10 rounded-3xl border border-white/20 p-8 shadow-2xl shadow-orange-500/10">
-            <form onSubmit={onSubmit} className="space-y-6">
+            <form onSubmit={onSubmit} className="space-y-6" autoComplete="on">
               {/* Email Input */}
               <div className="space-y-2">
                 <label htmlFor="email" className="block text-white font-medium text-sm tracking-wide">
@@ -82,6 +100,7 @@ const SignIn = () => {
                   className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300 backdrop-blur-sm"
                   autoComplete="email"
                   required
+                  disabled={isSigningIn}
                 />
               </div>
 
@@ -100,11 +119,13 @@ const SignIn = () => {
                     className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 pr-12 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300 backdrop-blur-sm"
                     autoComplete="current-password"
                     required
+                    disabled={isSigningIn}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-white transition-colors duration-200"
+                    tabIndex={-1}
                   >
                     {showPassword ? (
                       <EyeSlashIcon className="h-5 w-5" />
@@ -147,6 +168,7 @@ const SignIn = () => {
                 type="button"
                 onClick={() => (window.location.href = "/forgot-password")}
                 className="text-orange-300 hover:text-white text-sm font-medium transition-colors duration-200 hover:underline decoration-orange-300"
+                disabled={isSigningIn}
               >
                 Forgot Password?
               </button>
@@ -156,7 +178,7 @@ const SignIn = () => {
           {/* Footer */}
           <div className="text-center mt-8">
             <p className="text-gray-500 text-sm">
-              Secure login powered by Odyssey encryption
+              🔒 Secure login protected by HTTPS encryption
             </p>
           </div>
         </div>
