@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "../../contexts/authContext"; // Import useAuth
+import { useAuth } from "../../context/authContext/authContext"; // Import useAuth
 import RolesTable from "./Roles/RolesTable";
 import AccessDenied from "../ErrorPages/AccessDenied";
 import { useAccessControl } from "../../components/roles/accessControl";
