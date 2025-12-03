@@ -216,7 +216,7 @@ const AddUserModal = ({ showModal, setShowModal }) => {
       if (response.ok) {
         const result = await response.json();
         console.log("Mailjet email sent successfully:", result);
-        setEmailStatus("✅ Welcome email sent successfully via Mailjet!");
+        setEmailStatus("✅ Welcome email sent successfully!");
         return { success: true, data: result };
       } else {
         let errorMessage = "Unknown error";

@@ -114,7 +114,7 @@ router.post("/", async (req, res) => {
                     </ul>
                     
                     <div style="text-align: center;">
-                      <a href="https://odysys.netlify.app/signin" class="button">Login to Your Account</a>
+                      <a href="https://odysseyclinicmanagement.netlify.app/signin" class="button">Login to Your Account</a>
                     </div>
                     
                     <p style="margin-top: 30px;">If you have any questions or need assistance, please don't hesitate to contact our support team.</p>

@@ -1,20 +1,24 @@
 import { useState } from "react";
+import { useAuth } from "../../contexts/authContext"; // Import useAuth
 import RolesTable from "./Roles/RolesTable";
 import AccessDenied from "../ErrorPages/AccessDenied";
 import { useAccessControl } from "../../components/roles/accessControl";
 import DepartmentsTable from "./Departments/DepartmentsTable";
 import ClinicsTable from "./Clinics/ClinicTable";
 import DoctorsTable from "./Doctors/DoctorsTable";
-import SuccessModal from "../../components/reusable/SuccessModal"; // ✅ import here
+import SuccessModal from "../../components/reusable/SuccessModal"; 
 
 const Settings = () => {
   const [tableView, setTableView] = useState("Role Management");
   const permissions = useAccessControl();
+  const { role } = useAuth(); // Get the user's role from AuthContext
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [successTitle, setSuccessTitle] = useState("");
 
-  const shouldShowClinicManagement = permissions?.accessClinicManagement === true;
+  // Only show Clinic Management if user is superadmin AND has permission
+  const shouldShowClinicManagement = 
+    role === "superadmin" && permissions?.accessClinicManagement === true;
 
   const handleShowSuccess = (title, message) => {
     setSuccessTitle(title);
